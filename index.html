@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portwalk — compiler-scheduled access ports for racetrack memory</title>
+  <meta name="description" content="Portwalk prices skyrmion racetrack shifts from LLVM IR, schedules gathers, and checks the controller against the same model through DPI-C.">
+  <link rel="icon" type="image/png" href="docs/portwalk-logo.png">
+  <meta property="og:title" content="Portwalk">
+  <meta property="og:description" content="Compiler-scheduled access ports for skyrmion racetrack memory, checked through DPI-C.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://khademullah.github.io/LLVM-DPI-C/">
+  <meta property="og:image" content="https://khademullah.github.io/LLVM-DPI-C/docs/portwalk-logo.png">
+  <meta name="theme-color" content="#18181b">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,560;8..60,650&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #18181b;
+      --muted: #52525b;
+      --faint: #71717a;
+      --line: #e4e4e7;
+      --bg: #f7f7f8;
+      --paper: #ffffff;
+      --blue: #1d4ed8;
+      --blue-bg: #dbeafe;
+      --amber: #c2410c;
+      --amber-bg: #ffedd5;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+      font-size: 17px;
+      line-height: 1.55;
+    }
+    a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: #1e3a8a; }
+    .wrap { width: min(920px, calc(100% - 40px)); margin: 0 auto; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 0 8px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
+    .brand img { width: 52px; height: 52px; border-radius: 12px; display: block; }
+    .brand strong { font-family: "Source Serif 4", Georgia, serif; font-size: 22px; font-weight: 650; letter-spacing: -0.02em; }
+    nav { display: flex; gap: 18px; font-size: 15px; }
+    nav a { color: var(--ink); text-decoration: none; }
+    nav a:hover { color: var(--blue); }
+    h1 {
+      font-family: "Source Serif 4", Georgia, serif;
+      font-weight: 650;
+      font-size: clamp(34px, 5vw, 52px);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      margin: 28px 0 14px;
+    }
+    .lead { font-size: 19px; max-width: 42rem; margin: 0 0 22px; color: var(--ink); }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 36px; }
+    .btn {
+      display: inline-block;
+      padding: 9px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .btn.primary { background: var(--ink); color: #fff; }
+    .btn.primary:hover { background: #27272a; color: #fff; }
+    .btn.ghost { background: var(--paper); color: var(--ink); border: 1px solid var(--line); }
+    .btn.ghost:hover { border-color: #a1a1aa; color: var(--ink); }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 0 0 28px;
+    }
+    .stat {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px 14px 12px;
+    }
+    .stat b {
+      display: block;
+      font-family: "Source Serif 4", Georgia, serif;
+      font-size: 30px;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+    .stat span { display: block; margin-top: 6px; color: var(--muted); font-size: 14px; line-height: 1.35; }
+    .stat.head { background: var(--blue-bg); border-color: #bfdbfe; }
+    .stat.later { background: var(--amber-bg); border-color: #fed7aa; }
+    section { margin: 36px 0; }
+    h2 {
+      font-family: "Source Serif 4", Georgia, serif;
+      font-size: 28px;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      margin: 0 0 10px;
+    }
+    .figure {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .figure img { width: 100%; height: auto; display: block; }
+    figcaption { color: var(--muted); font-size: 14px; margin-top: 10px; padding: 0 6px 4px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px 16px 14px;
+    }
+    .card h3 { margin: 0 0 6px; font-size: 16px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+    pre {
+      background: #18181b;
+      color: #f4f4f5;
+      border-radius: 10px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    code { font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace; }
+    p code, li code {
+      font-size: 0.92em;
+      background: #ececee;
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+    video {
+      width: 100%;
+      border-radius: 12px;
+      background: #18181b;
+      display: block;
+    }
+    .note { color: var(--muted); }
+    footer {
+      border-top: 1px solid var(--line);
+      margin-top: 48px;
+      padding: 22px 0 40px;
+      color: var(--faint);
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    footer a { color: var(--muted); }
+    @media (max-width: 720px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .grid { grid-template-columns: 1fr; }
+      nav { display: none; }
+    }
+    @media (max-width: 480px) {
+      .stats { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a class="brand" href="./">
+        <img src="docs/portwalk-logo.png" width="52" height="52" alt="Portwalk logo: a racetrack of domains, blue head under an access port, two later reads in amber">
+        <strong>Portwalk</strong>
+      </a>
+      <nav>
+        <a href="#tape">Tape</a>
+        <a href="#pipeline">Pipeline</a>
+        <a href="#build">Build</a>
+        <a href="https://github.com/khademullah/LLVM-DPI-C">GitHub</a>
+      </nav>
+    </header>
+
+    <h1>The compiler prices the walk. The controller has to agree.</h1>
+    <p class="lead">Racetrack memory does not offer random access. A domain becomes visible only after the nanowire shifts it under an access port. Portwalk turns that distance into a cost an LLVM pass can report, schedules gathers to shorten the walk, and checks the shift controller against the same model through DPI-C.</p>
+    <div class="actions">
+      <a class="btn primary" href="https://github.com/khademullah/LLVM-DPI-C">Source on GitHub</a>
+      <a class="btn ghost" href="https://github.com/khademullah/LLVM-DPI-C/blob/main/docs/guide.md">Read the guide</a>
+      <a class="btn ghost" href="#walkthrough">Watch the walkthrough</a>
+    </div>
+
+    <div class="stats">
+      <div class="stat head">
+        <b>63</b>
+        <span>shifts for 64 reads at a step of 1, head already on the first element</span>
+      </div>
+      <div class="stat later">
+        <b>4032</b>
+        <span>shifts for the same 64 reads at a step of 64. The ratio is 64×</span>
+      </div>
+      <div class="stat">
+        <b>48 → 12</b>
+        <span>gather 0, 10, 1, 11, 2, 12 in program order, then nearest-port order</span>
+      </div>
+      <div class="stat">
+        <b>1 = 1</b>
+        <span>RTL head and C model head after the same commands, or the co-sim fails</span>
+      </div>
+    </div>
+
+    <section id="tape">
+      <h2>Where the head walks</h2>
+      <p>Blue is the domain under the port. Amber is a later read. A unit stride in LLVM is a 4-byte step, one domain. A column stride is 256 bytes, 64 domains. Carry shifts are the steady shift times the trip count minus one, because the first element is free when the head is already there.</p>
+      <figure class="figure">
+        <img src="docs/portwalk-tape.svg" alt="Tape diagram. Row walk costs 63 shifts. Column walk costs 4032. Two ports make a seek of domain 32 cost 0. A gather falls from 48 shifts to 12. DPI-C ends with both heads on slot 1.">
+        <figcaption>Same counts as <code>make demo</code>: row 63, column 4032, one port versus two, program order 48, scheduled 12, and the DPI-C head match.</figcaption>
+      </figure>
+    </section>
+
+    <section id="pipeline">
+      <h2>Pipeline</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>LLVM cost pass</h3>
+          <p><code>llvm/CostPass.cpp</code> uses ScalarEvolution. <code>row_sum</code> reports a steady shift of 1 and carry 63. <code>col_sum</code> reports 64 and 4032. <code>gather_sum</code> is marked indirect, because <code>vals[idx[i]]</code> has no affine stride.</p>
+        </article>
+        <article class="card">
+          <h3>Port scheduler</h3>
+          <p><code>src/schedule.c</code> reorders independent reads to shorten head travel, the way a NIC may reorder DMA descriptors inside one burst. A write of a domain stays ahead of a later read of that domain.</p>
+        </article>
+        <article class="card">
+          <h3>Zero-run limit</h3>
+          <p><code>src/rll.c</code> bit-stuffs stored words so a run of zeros stays bounded. A raw all-zero word is a write fault. The encoded word is not. This stands in for a long stretch of nanowire with no skyrmion.</p>
+        </article>
+        <article class="card">
+          <h3>DPI-C co-sim</h3>
+          <p><code>rtl/rtm_ctrl.sv</code> is a one-command shift controller. <code>src/dpi_bridge.c</code> replays every command on the C model. The run passes only when head and read data match. The trace is <code>build/cosim_trace.csv</code>.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>What this is</h2>
+      <p>A prototype cost model and a single-port controller. Timing is one cycle per domain of travel and one cycle per access. A domain is a 32-bit word. The C model is what evaluates extra ports. Shift-pulse energy, skyrmion diameter, and misalignment probability are not modeled.</p>
+      <p class="note">Affine layout rewriting for racetrack memory is already published as polyhedral compilation on Polly. Portwalk sits beside that result. It schedules the accesses outside the affine fragment, and it keeps the compiler and the controller on one cost model.</p>
+    </section>
+
+    <section id="walkthrough">
+      <h2>Walkthrough</h2>
+      <p>A narrated pass over the same tape, from a single step to the LLVM report. Generated English voice. About three minutes.</p>
+      <video controls preload="metadata" src="docs/portwalk-demo.mp4">
+        <a href="docs/portwalk-demo.mp4">Download the walkthrough</a>
+      </video>
+    </section>
+
+    <section id="build">
+      <h2>Build and run</h2>
+      <p>LLVM/Clang 21 and Verilator, the versions this tree was developed against.</p>
+      <pre><code>git clone https://github.com/khademullah/LLVM-DPI-C.git
+cd LLVM-DPI-C
+make check   # model, scheduler, RLL
+make demo    # numbers, LLVM report, DPI-C co-sim</code></pre>
+      <p>The pass also loads into <code>opt</code>:</p>
+      <pre><code>opt-21 -load-pass-plugin=build/rtm_cost.so -passes=rtm-cost \
+  -disable-output build/ir_kernels.ll</code></pre>
+    </section>
+
+    <footer>
+      <span>Khadem Ullah</span>
+      <span><a href="https://github.com/khademullah/LLVM-DPI-C">github.com/khademullah/LLVM-DPI-C</a></span>
+    </footer>
+  </div>
+</body>
+</html>

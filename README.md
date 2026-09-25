@@ -13,7 +13,7 @@ This repository is a small, runnable cut of that co-design. It is a prototype
 cost model and a single-port controller, not a device-physics simulator and
 not a replacement for polyhedral loop optimization.
 
-The tape diagram, a short account of how LLVM is used here, and how that maps onto NIC DMA, firmware, PCIe, and the networking stack are in [docs/guide.md](docs/guide.md). A narrated walkthrough from the tape itself is [docs/portwalk-demo.mp4](docs/portwalk-demo.mp4).
+The tape diagram, a short account of how LLVM is used here, and how that maps onto NIC DMA, firmware, PCIe, and the networking stack are in [docs/guide.md](docs/guide.md). A narrated walkthrough from the tape itself is [docs/portwalk-demo.mp4](docs/portwalk-demo.mp4). The GitHub Pages site is [index.html](index.html), published from the `main` branch root at <https://khademullah.github.io/LLVM-DPI-C/>.
 
 ## Pipeline
 
@@ -97,6 +97,9 @@ kernels/ir_kernels.c   row_sum, col_sum, gather_sum
 rtl/rtm_ctrl.sv        shift controller
 rtl/tb_rtm.sv          co-sim stimulus
 docs/guide.md          tape diagram, LLVM, and the NIC/firmware mapping
+docs/portwalk-tape.svg the tape diagram used on the project page
+docs/portwalk-logo.png logo: head under the port, later reads along the tape
 docs/portwalk-demo.mp4 narrated walkthrough of the same counts
+index.html             GitHub Pages project site
 tests/test_rtm.c
 ```
