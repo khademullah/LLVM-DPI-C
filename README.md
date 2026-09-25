@@ -13,23 +13,7 @@ This repository is a small, runnable cut of that co-design. It is a prototype
 cost model and a single-port controller, not a device-physics simulator and
 not a replacement for polyhedral loop optimization.
 
-## Where the head walks
-
-![Row walk 63 shifts, column walk 4032 shifts, two ports, gather reorder from 48 to 12, DPI-C heads both at 1](docs/portwalk-tape.svg)
-
-Boxes are slots on the nanowire. The number on each hop is how far the head moves. The picture shows the step; `make demo` prints the same totals. The column total is 63 hops of 64, because the head is already on the first slot.
-
-**Row and column.** A row is the next slot every time, so each hop is +1. A column of a 64-wide row is 64 slots away, so each hop is +64. Same 64 reads, very different travel. The LLVM pass reads that step out of the loop (4 bytes versus 256 bytes) and turns it into these hop counts.
-
-**Two ports.** A second head already sits on slot 32. Asking for slot 32 costs 32 shifts with one head and 0 with two. The compiler has to be told how many heads the chip has.
-
-**Gathers, the NIC case.** Program order and scheduled order are the same six reads: slots 0, 10, 1, 11, 2, and 12. Nothing about the values depends on the order, because each read touches a different slot.
-
-That is the same freedom a NIC has with DMA descriptors. The ring says "fetch buffer 0, then 10, then 1, …" but those fetches do not depend on each other, so the DMA engine may issue them in an order that keeps the bus, or here the head, from bouncing. Walking 0 → 10 → 1 → 11 → 2 → 12 costs 48 shifts. Walking 0 → 1 → 2 → 10 → 11 → 12 costs 12. The scheduler picks the ready read closest to where the head already is.
-
-A write is a different descriptor. Suppose the bundle is "write slot 5, read slot 1, read slot 5, read slot 2." The read of slot 5 has to stay behind the write, or it would return the old value. The reads of slots 1 and 2 are still free to go first. A NIC applies the same rule: independent DMA reads can be reordered, and a write of an address stays ahead of a later read of that address. In `src/schedule.c` that later operation waits for the most recent earlier one on the same slot whenever either side is a write.
-
-**DPI-C check.** The bottom row is the eight commands in `rtl/tb_rtm.sv`. The blue box is where the head stops. The SystemVerilog controller and the C model both report head 1.
+The tape diagram, a short account of how LLVM is used here, and how that maps onto NIC DMA, firmware, PCIe, and the networking stack are in [docs/guide.md](docs/guide.md).
 
 ## Pipeline
 
@@ -112,6 +96,6 @@ llvm/CostPass.cpp      LLVM IR shift-cost pass
 kernels/ir_kernels.c   row_sum, col_sum, gather_sum
 rtl/rtm_ctrl.sv        shift controller
 rtl/tb_rtm.sv          co-sim stimulus
-docs/portwalk-tape.svg tape diagram used above
+docs/guide.md          tape diagram, LLVM, and the NIC/firmware mapping
 tests/test_rtm.c
 ```
