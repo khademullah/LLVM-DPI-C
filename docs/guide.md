@@ -2,6 +2,8 @@
 
 Plain-language notes for the tape diagram, for what LLVM is doing in this repo, and for how that lines up with NIC DMA, DPDK rings, firmware, PCIe, and the networking stack.
 
+A narrated walkthrough, starting from the tape and ending at the LLVM step and the DPDK burst, is in [portwalk-demo.mp4](portwalk-demo.mp4). The voice is generated. `make demo` prints the same shift counts.
+
 ## Where the head walks
 
 ![Row walk 63 shifts, column walk 4032 shifts, two ports, gather reorder from 48 to 12, DPI-C heads both at 1](portwalk-tape.svg)
